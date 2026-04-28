@@ -1,3 +1,5 @@
+name: graphiti-mcp
+
 services:
   neo4j:
     image: neo4j:5.26.0
@@ -47,7 +49,7 @@ services:
     volumes:
       - ../config/config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
     ports:
-      - "8000:8000" # Expose the MCP server via HTTP transport
+      - "127.0.0.1:${PORT}:8000" # Hatchbox routes via Caddy using $PORT
     command: ["uv", "run", "main.py"]
 
 volumes:
