@@ -5,6 +5,8 @@ Graphiti MCP Server - Exposes Graphiti functionality through the Model Context P
 
 import argparse
 import asyncio
+import contextvars
+import json
 import logging
 import os
 import sys
@@ -148,6 +150,64 @@ mcp = FastMCP(
     'Graphiti Agent Memory',
     instructions=GRAPHITI_MCP_INSTRUCTIONS,
 )
+
+# Per-request group_id set by API key middleware
+_request_group_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    'request_group_id', default=None
+)
+
+
+def _load_api_keys() -> dict[str, str]:
+    """Load API key -> group_id mapping from API_KEYS env var (JSON object)."""
+    raw = os.getenv('API_KEYS', '')
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning('API_KEYS env var is not valid JSON — ignoring')
+        return {}
+
+
+class ApiKeyMiddleware:
+    """ASGI middleware that validates Bearer tokens and sets request-scoped group_id."""
+
+    def __init__(self, app, api_keys: dict[str, str]):
+        self.app = app
+        self.api_keys = api_keys
+
+    async def __call__(self, scope, receive, send):
+        if scope['type'] not in ('http', 'websocket') or not self.api_keys:
+            await self.app(scope, receive, send)
+            return
+
+        headers = {k.lower(): v for k, v in scope.get('headers', [])}
+        auth = headers.get(b'authorization', b'').decode()
+
+        if not auth.startswith('Bearer '):
+            await self._reject(scope, receive, send, 401, 'Missing API key')
+            return
+
+        token = auth[7:].strip()
+        group_id = self.api_keys.get(token)
+        if not group_id:
+            await self._reject(scope, receive, send, 401, 'Invalid API key')
+            return
+
+        ctx_token = _request_group_id.set(group_id)
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            _request_group_id.reset(ctx_token)
+
+    @staticmethod
+    async def _reject(scope, receive, send, status: int, message: str):
+        body = json.dumps({'error': message}).encode()
+        await send({'type': 'http.response.start', 'status': status,
+                    'headers': [[b'content-type', b'application/json'],
+                                [b'content-length', str(len(body)).encode()]]})
+        await send({'type': 'http.response.body', 'body': body})
+
 
 # Global services
 graphiti_service: Optional['GraphitiService'] = None
@@ -371,8 +431,8 @@ async def add_memory(
         return ErrorResponse(error='Services not initialized')
 
     try:
-        # Use the provided group_id or fall back to the default from config
-        effective_group_id = group_id or config.graphiti.group_id
+        # Use the provided group_id, then request-scoped key, then config default
+        effective_group_id = group_id or _request_group_id.get() or config.graphiti.group_id
 
         # Try to parse the source as an EpisodeType enum, with fallback to text
         episode_type = EpisodeType.text  # Default
@@ -427,10 +487,13 @@ async def search_nodes(
     try:
         client = await graphiti_service.get_client()
 
-        # Use the provided group_ids or fall back to the default from config if none provided
+        # Use the provided group_ids, then request-scoped key, then config default
+        _req_gid = _request_group_id.get()
         effective_group_ids = (
             group_ids
             if group_ids is not None
+            else [_req_gid]
+            if _req_gid
             else [config.graphiti.group_id]
             if config.graphiti.group_id
             else []
@@ -511,10 +574,13 @@ async def search_memory_facts(
 
         client = await graphiti_service.get_client()
 
-        # Use the provided group_ids or fall back to the default from config if none provided
+        # Use the provided group_ids, then request-scoped key, then config default
+        _req_gid = _request_group_id.get()
         effective_group_ids = (
             group_ids
             if group_ids is not None
+            else [_req_gid]
+            if _req_gid
             else [config.graphiti.group_id]
             if config.graphiti.group_id
             else []
@@ -636,10 +702,13 @@ async def get_episodes(
     try:
         client = await graphiti_service.get_client()
 
-        # Use the provided group_ids or fall back to the default from config if none provided
+        # Use the provided group_ids, then request-scoped key, then config default
+        _req_gid = _request_group_id.get()
         effective_group_ids = (
             group_ids
             if group_ids is not None
+            else [_req_gid]
+            if _req_gid
             else [config.graphiti.group_id]
             if config.graphiti.group_id
             else []
@@ -942,7 +1011,21 @@ async def run_mcp_server():
         # Configure uvicorn logging to match our format
         configure_uvicorn_logging()
 
-        await mcp.run_streamable_http_async()
+        api_keys = _load_api_keys()
+        if api_keys:
+            logger.info(f'API key auth enabled — {len(api_keys)} key(s) configured')
+            import uvicorn
+            app = ApiKeyMiddleware(mcp.streamable_http_app(), api_keys)
+            server_config = uvicorn.Config(
+                app,
+                host=mcp.settings.host,
+                port=mcp.settings.port,
+                log_config=None,
+            )
+            await uvicorn.Server(server_config).serve()
+        else:
+            logger.warning('No API_KEYS configured — server is open (no auth)')
+            await mcp.run_streamable_http_async()
     else:
         raise ValueError(
             f'Unsupported transport: {mcp_config.transport}. Use "sse", "stdio", or "http"'
