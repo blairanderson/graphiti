@@ -158,15 +158,21 @@ _request_group_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 
 
 def _load_api_keys() -> dict[str, str]:
-    """Load API key -> group_id mapping from API_KEYS env var (JSON object)."""
-    raw = os.getenv('API_KEYS', '')
-    if not raw:
-        return {}
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        logger.warning('API_KEYS env var is not valid JSON — ignoring')
-        return {}
+    """Load API key -> group_id mapping from CLIENT_KEY_<NAME> env vars.
+
+    Each env var named CLIENT_KEY_<NAME> maps its value (the token) to the
+    group_id derived from <NAME> (lowercased). Example:
+        CLIENT_KEY_ACME=tok_abc123  →  token "tok_abc123" → group "acme"
+    """
+    keys: dict[str, str] = {}
+    prefix = 'CLIENT_KEY_'
+    for name, token in os.environ.items():
+        if name.startswith(prefix) and token:
+            group_id = name[len(prefix):].lower()
+            keys[token] = group_id
+    if keys:
+        logger.info(f'Loaded {len(keys)} API key(s): {sorted(v for v in keys.values())}')
+    return keys
 
 
 class ApiKeyMiddleware:
