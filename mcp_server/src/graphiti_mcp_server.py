@@ -208,7 +208,29 @@ class ApiKeyMiddleware:
 
     @staticmethod
     async def _reject(scope, receive, send, status: int, message: str):
-        body = json.dumps({'error': message}).encode()
+        body = (
+            '{\n'
+            f'  "error": "{message}",\n'
+            '  "message": [\n'
+            '    "",\n'
+            '    "  ██████╗ ██████╗  █████╗ ██████╗ ██╗  ██╗    ██████╗ ██╗      █████╗ ██╗██████╗ ",\n'
+            '    " ██╔════╝ ██╔══██╗██╔══██╗██╔══██╗██║  ██║    ██╔══██╗██║     ██╔══██╗██║██╔══██╗",\n'
+            '    " ██║  ███╗██████╔╝███████║██████╔╝███████║    ██████╔╝██║     ███████║██║██████╔╝",\n'
+            '    " ██║   ██║██╔══██╗██╔══██║██╔═══╝ ██╔══██║    ██╔══██╗██║     ██╔══██║██║██╔══██╗",\n'
+            '    " ╚██████╔╝██║  ██║██║  ██║██║     ██║  ██║    ██████╔╝███████╗██║  ██║██║██║  ██║",\n'
+            '    "  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝    ╚═════╝ ╚══════╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝",\n'
+            '    "",\n'
+            '    "  Your AI agents deserve a memory worth remembering.",\n'
+            '    "",\n'
+            '    "  This is a private Graphiti MCP server.",\n'
+            '    "  Access requires an API key.",\n'
+            '    "",\n'
+            '    "  Want in? Talk to Blair:",\n'
+            '    "  \U0001f4e7  blair@andersonassociates.net",\n'
+            '    ""\n'
+            '  ]\n'
+            '}'
+        ).encode()
         await send({'type': 'http.response.start', 'status': status,
                     'headers': [[b'content-type', b'application/json'],
                                 [b'content-length', str(len(body)).encode()]]})
