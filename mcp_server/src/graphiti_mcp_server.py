@@ -197,7 +197,7 @@ class ApiKeyMiddleware:
         token = auth[7:].strip()
         group_id = self.api_keys.get(token)
         if not group_id:
-            await self._reject(scope, receive, send, 401, 'Invalid API key')
+            await self._reject(scope, receive, send, 402, 'Invalid API key')
             return
 
         ctx_token = _request_group_id.set(group_id)

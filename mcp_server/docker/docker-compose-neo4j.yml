@@ -59,6 +59,13 @@ services:
       - SEMAPHORE_LIMIT=${SEMAPHORE_LIMIT:-10}
       - CONFIG_PATH=/app/mcp/config/config.yaml
       - PATH=/root/.local/bin:${PATH}
+      # API keys — add one CLIENT_KEY_<NAME> per client (value = bearer token)
+      - CLIENT_KEY_ANDERSONASSOCIATES=${CLIENT_KEY_ANDERSONASSOCIATES:-}
+      - CLIENT_KEY_LOOPED=${CLIENT_KEY_LOOPED:-}
+      - CLIENT_KEY_HYDROSEEDCALCULATOR=${CLIENT_KEY_HYDROSEEDCALCULATOR:-}
+      - CLIENT_KEY_BIGDETAILPAGE=${CLIENT_KEY_BIGDETAILPAGE:-}
+      - CLIENT_KEY_SHIPMENTBOT=${CLIENT_KEY_SHIPMENTBOT:-}
+      - CLIENT_KEY_FORMROUTER=${CLIENT_KEY_FORMROUTER:-}
     volumes:
       - ../config/config-docker-neo4j.yaml:/app/mcp/config/config.yaml:ro
     command: ["uv", "run", "main.py"]
