@@ -856,6 +856,34 @@ async def health_check(request) -> JSONResponse:
     return JSONResponse({'status': 'healthy', 'service': 'graphiti-mcp'})
 
 
+@mcp.custom_route('/health/clients', methods=['GET'])
+async def clients_health(request) -> JSONResponse:
+    """Show which CLIENT_KEY_* env vars are loaded. Tokens are never exposed."""
+    prefix = 'CLIENT_KEY_'
+    found_in_env: list[str] = []
+    missing_value: list[str] = []
+
+    for name, value in os.environ.items():
+        if name.startswith(prefix):
+            group_id = name[len(prefix):].lower()
+            if value:
+                found_in_env.append(group_id)
+            else:
+                missing_value.append(group_id)
+
+    status = 'ok' if found_in_env else 'warning'
+    return JSONResponse({
+        'status': status,
+        'active_clients': sorted(found_in_env),
+        'client_count': len(found_in_env),
+        'misconfigured': sorted(missing_value),
+        'hint': (
+            'All good!' if found_in_env and not missing_value
+            else 'Set CLIENT_KEY_<NAME>=<token> in your environment and make sure it is listed in docker-compose environment section.'
+        ),
+    })
+
+
 async def initialize_server() -> ServerConfig:
     """Parse CLI arguments and initialize the Graphiti server configuration."""
     global config, graphiti_service, queue_service, graphiti_client, semaphore
