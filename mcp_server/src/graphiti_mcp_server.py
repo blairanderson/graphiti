@@ -226,7 +226,7 @@ class ApiKeyMiddleware:
             '    "  Access requires an API key.",\n'
             '    "",\n'
             '    "  Want in? Talk to Blair:",\n'
-            '    "  \U0001f4e7  blair@andersonassociates.net",\n'
+            '    "  \U0001f310  https://blair.biz/contact/",\n'
             '    ""\n'
             '  ]\n'
             '}'
