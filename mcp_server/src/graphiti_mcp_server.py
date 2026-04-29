@@ -853,7 +853,12 @@ async def get_status() -> StatusResponse:
 @mcp.custom_route('/health', methods=['GET'])
 async def health_check(request) -> JSONResponse:
     """Health check endpoint for Docker and load balancers."""
-    return JSONResponse({'status': 'healthy', 'service': 'graphiti-mcp'})
+    return JSONResponse({
+        'status': 'healthy',
+        'service': 'graphiti-mcp',
+        'revision': os.getenv('HATCHBOX_REVISION', 'unknown'),
+        'release': os.getenv('HATCHBOX_RELEASE', 'unknown'),
+    })
 
 
 @mcp.custom_route('/health/clients', methods=['GET'])
