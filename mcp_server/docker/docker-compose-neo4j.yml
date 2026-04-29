@@ -32,6 +32,7 @@ services:
     restart: always
 
   graphiti-mcp:
+    image: zepai/knowledge-graph-mcp:standalone
     build:
       context: ..
       dockerfile: docker/Dockerfile.standalone
