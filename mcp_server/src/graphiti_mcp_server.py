@@ -187,6 +187,12 @@ class ApiKeyMiddleware:
             await self.app(scope, receive, send)
             return
 
+        # Public health/monitoring endpoints — no auth required
+        path = scope.get('path', '')
+        if path == '/up' or path.startswith('/health'):
+            await self.app(scope, receive, send)
+            return
+
         headers = {k.lower(): v for k, v in scope.get('headers', [])}
         auth = headers.get(b'authorization', b'').decode()
 
