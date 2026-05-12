@@ -869,6 +869,8 @@ async def up(request) -> JSONResponse:
         'status': 'ok',
         'revision': os.getenv('HATCHBOX_REVISION', 'unknown'),
         'release': os.getenv('HATCHBOX_RELEASE', 'unknown'),
+        'branch': os.getenv('HATCHBOX_BRANCH', 'unknown'),
+        'server': os.getenv('HATCHBOX_SERVER_NAME', 'unknown'),
     })
 
 

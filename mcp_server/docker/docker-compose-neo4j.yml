@@ -43,6 +43,11 @@ services:
       neo4j:
         condition: service_healthy
     environment:
+      # Hatchbox deploy info — Hatchbox sets these in the deploy shell env
+      - HATCHBOX_REVISION=${HATCHBOX_REVISION:-}
+      - HATCHBOX_RELEASE=${HATCHBOX_RELEASE:-}
+      - HATCHBOX_BRANCH=${HATCHBOX_BRANCH:-}
+      - HATCHBOX_SERVER_NAME=${HATCHBOX_SERVER_NAME:-}
       # LLM configuration
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - MODEL_NAME=${MODEL_NAME:-gpt-4.1-mini}
